@@ -1,0 +1,27 @@
+global:
+  scrape_interval:     30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  # 边缘节点（通过 Tailscale IP 抓取，Node Registry cron 更新此文件）
+  - job_name: 'edge-nodes'
+    file_sd_configs:
+      - files:
+          - '/etc/prometheus/targets/nodes.json'
+        refresh_interval: 60s
+    relabel_configs:
+      # 用 instance label 代替 ip:port 显示 hostname
+      - source_labels: [instance]
+        target_label: instance
+
+  # Prometheus 自身
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 中国 VPS 自身（Grafana 所在机器）
+  - job_name: 'management-server'
+    static_configs:
+      - targets: ['localhost:9100']
+        labels:
+          instance: 'management'
