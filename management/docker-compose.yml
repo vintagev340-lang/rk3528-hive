@@ -8,7 +8,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=30d'
       - '--web.enable-lifecycle'         # 支持 POST /-/reload 热重载
-      - '--web.external-url=${PROMETHEUS_EXTERNAL_URL:-/prometheus/}'  # 域名反代时填 https://hive.sakurapuare.com/prometheus/
+      - '--web.external-url=${PROMETHEUS_EXTERNAL_URL:-/prometheus/}'  # 域名反代时填 https://example.com/prometheus/
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/rules:/etc/prometheus/rules:ro
@@ -29,8 +29,8 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-changeme}
       - GF_USERS_ALLOW_SIGN_UP=false
-      # 子路径反代必须写死完整 URL，且不要末尾斜杠（与 Grafana 文档一致）
-      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-https://example.com/grafana}
+      # root_url 末尾必须有 /，否则 Grafana 拼接静态资源路径会出错
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-https://example.com/grafana/}
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
     volumes:
       - grafana_data:/var/lib/grafana
