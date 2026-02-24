@@ -1,0 +1,30 @@
+# 密钥和敏感配置
+.env
+*.secret
+*.key
+*.pem
+*.p12
+
+# Armbian 构建产物（体积巨大）
+armbian-build/output/
+armbian-build/cache/
+armbian-build/.tmp/
+
+# 渲染后的实际配置（含密钥，由模板生成）
+armbian-build/userpatches/overlay/etc/mihomo/config.yaml
+armbian-build/userpatches/overlay/etc/frp/frpc.toml
+armbian-build/userpatches/overlay/etc/xray/config.json
+
+# 预编译二进制（由 scripts/download-binaries.sh 下载）
+armbian-build/userpatches/overlay/usr/local/bin/
+
+# 镜像文件
+*.img
+*.img.xz
+*.img.zst
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*~
