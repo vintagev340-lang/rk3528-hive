@@ -1,0 +1,22 @@
+---
+# 批量重启指定服务
+# 用法:
+#   ansible-playbook playbooks/restart-services.yml -e "service=xray"
+#   ansible-playbook playbooks/restart-services.yml -e "service=cloudflared"
+- name: Restart service on all edge nodes
+  hosts: tag_hive
+  gather_facts: false
+
+  tasks:
+    - name: "Restart {{ service }}"
+      ansible.builtin.systemd:
+        name: "{{ service }}"
+        state: restarted
+      when: service is defined
+
+    - name: Verify service is active
+      ansible.builtin.systemd:
+        name: "{{ service }}"
+      register: result
+      failed_when: result.status.ActiveState != 'active'
+      when: service is defined

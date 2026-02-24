@@ -1,0 +1,18 @@
+---
+# 基础连通性测试
+# 用法: ansible-playbook playbooks/ping.yml
+- name: Ping all edge nodes
+  hosts: tag_hive
+  gather_facts: false
+  tasks:
+    - name: Ping
+      ansible.builtin.ping:
+
+    - name: Show node info
+      ansible.builtin.command: cat /etc/edge/node-info
+      changed_when: false
+      register: node_info
+
+    - name: Print
+      ansible.builtin.debug:
+        msg: "{{ node_info.stdout_lines }}"

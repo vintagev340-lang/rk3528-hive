@@ -1,0 +1,31 @@
+---
+# 检查所有节点的服务状态
+# 用法: ansible-playbook playbooks/service-status.yml
+- name: Check service status on all edge nodes
+  hosts: tag_hive
+  gather_facts: false
+  vars:
+    services:
+      - xray
+      - cloudflared
+      - tailscaled
+      - easytier
+      - frpc
+      - prometheus-node-exporter
+
+  tasks:
+    - name: Get service status
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+      register: svc_status
+      loop: "{{ services }}"
+      changed_when: false
+      failed_when: false
+
+    - name: Print status table
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.item }}: {{ item.status.ActiveState | default('unknown') }}
+      loop: "{{ svc_status.results }}"
+      loop_control:
+        label: "{{ item.item }}"

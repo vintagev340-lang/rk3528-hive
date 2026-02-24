@@ -1,0 +1,47 @@
+groups:
+  - name: edge-nodes
+    interval: 60s
+    rules:
+
+      # 节点离线：超过 3 分钟抓不到数据
+      - alert: NodeDown
+        expr: up{job="hives"} == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "节点离线: {{ $labels.instance }}"
+          description: "{{ $labels.instance }} (mac6={{ $labels.mac6 }}) 已离线超过 3 分钟"
+
+      # 内存不足：可用内存 < 100MB
+      - alert: NodeMemoryLow
+        expr: |
+          node_memory_MemAvailable_bytes{job="hives"} < 100 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "内存不足: {{ $labels.instance }}"
+          description: "可用内存 {{ $value | humanize1024 }}B，可能影响代理性能"
+
+      # CPU 持续高负载
+      - alert: NodeHighCPU
+        expr: |
+          100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle",job="hives"}[5m])) * 100) > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU 高负载: {{ $labels.instance }}"
+          description: "CPU 使用率 {{ $value | printf \"%.1f\" }}% 持续超过 10 分钟"
+
+      # 磁盘空间不足（根分区 < 500MB）
+      - alert: NodeDiskLow
+        expr: |
+          node_filesystem_avail_bytes{job="hives", mountpoint="/"} < 500 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "磁盘空间不足: {{ $labels.instance }}"
+          description: "根分区剩余 {{ $value | humanize1024 }}B"
