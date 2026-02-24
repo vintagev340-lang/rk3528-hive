@@ -5,7 +5,7 @@
 # 在 VPS 上执行：
 #   git clone <your-repo> /opt/edge-management
 #   cd /opt/edge-management
-#   cp .env.example .env && nano .env    # 填入 TAILSCALE_API_TOKEN、GRAFANA_PASSWORD
+#   cp .env.example .env && nano .env    # 填入 TAILSCALE_OAUTH_SECRET、GRAFANA_PASSWORD
 #   bash management/setup-vps.sh
 
 set -e
@@ -65,7 +65,7 @@ docker compose up -d
 # 6. 安装 update-targets.sh cron（每分钟刷新节点列表）
 # ─────────────────────────────────────────────
 chmod +x "${ROOT_DIR}/management/scripts/update-targets.sh"
-CRON_CMD="* * * * * TAILSCALE_API_TOKEN=${TAILSCALE_API_TOKEN} ${ROOT_DIR}/management/scripts/update-targets.sh"
+CRON_CMD="* * * * * TAILSCALE_OAUTH_SECRET=${TAILSCALE_OAUTH_SECRET} ${ROOT_DIR}/management/scripts/update-targets.sh"
 ( crontab -l 2>/dev/null | grep -v "update-targets"; echo "$CRON_CMD" ) | crontab -
 echo ">>> Cron installed: update-targets every minute"
 
@@ -87,5 +87,5 @@ echo "    3. Select 'Prometheus' datasource → Import"
 echo ""
 echo "  Ansible test:"
 echo "    cd ${ROOT_DIR}"
-echo "    export TAILSCALE_API_TOKEN=..."
+echo "    export TAILSCALE_OAUTH_SECRET=..."
 echo "    ansible-playbook ansible/playbooks/ping.yml"

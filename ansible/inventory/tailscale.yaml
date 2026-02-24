@@ -5,13 +5,13 @@
 #   ansible-galaxy collection install community.general
 #
 # 使用:
-#   TAILSCALE_API_TOKEN=xxx ansible-inventory -i inventory/tailscale.yaml --list
+#   TAILSCALE_OAUTH_SECRET=xxx ansible-inventory -i inventory/tailscale.yaml --list
 #   ansible -i inventory/tailscale.yaml tag_hive -m ping
 
 plugin: community.general.tailscale
 
 # API token 从环境变量读取（不要写进文件）
-api_key: "{{ lookup('env', 'TAILSCALE_API_TOKEN') }}"
+api_key: "{{ lookup('env', 'TAILSCALE_OAUTH_SECRET') }}"
 
 # 只包含 tag:hive 的节点
 tags:
