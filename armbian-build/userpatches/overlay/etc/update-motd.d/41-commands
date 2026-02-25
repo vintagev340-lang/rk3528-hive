@@ -40,6 +40,8 @@ list=(
     "Hive Config","","cat /etc/hive/config.env","[[ -f /etc/hive/config.env ]]"
     "Firewall Status","","hive-firewall status","command -v ufw"
     "Firewall Logs","","hive-firewall logs","command -v ufw"
+    "fail2ban Status","","hive-fail2ban status","command -v fail2ban-client"
+    "fail2ban Banned","","hive-fail2ban banned","command -v fail2ban-client"
 )
 
 # verify if command exits on the system

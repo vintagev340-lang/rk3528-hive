@@ -372,6 +372,15 @@ QR 码生成由 Node Registry 的 `/api/labels` 页面完成，打印即用。
 
    详细文档：[docs/FIREWALL.md](docs/FIREWALL.md)
 
+16. **入侵防护配置**（已实现）：fail2ban 自动检测和阻止攻击
+   - SSH 暴力破解防护：3次失败封禁2小时
+   - 端口扫描检测：10次扫描封禁1小时
+   - 系统服务保护：认证失败自动封禁
+   - 与防火墙集成：自动添加/移除封禁规则
+   - 入侵防护管理工具：`hive-fail2ban`
+
+   详细文档：[docs/FAIL2BAN.md](docs/FAIL2BAN.md)
+
 16. 自动故障转移逻辑（systemd + healthcheck）
 17. Ansible playbook：定期更新 xray 配置/版本
 
@@ -390,8 +399,11 @@ QR 码生成由 Node Registry 的 `/api/labels` 页面完成，打印即用。
 - `armbian-build/userpatches/overlay/etc/systemd/system/easytier.service`
 - `armbian-build/userpatches/overlay/etc/systemd/system/frpc.service`
 - `armbian-build/userpatches/overlay/etc/systemd/system/hive-firewall.service`（防火墙自动配置）
+- `armbian-build/userpatches/overlay/etc/systemd/system/hive-fail2ban.service`（入侵防护自动配置）
 - `armbian-build/userpatches/overlay/usr/local/bin/setup-firewall.sh`（防火墙初始化脚本）
+- `armbian-build/userpatches/overlay/usr/local/bin/setup-fail2ban.sh`（fail2ban 初始化脚本）
 - `armbian-build/userpatches/overlay/usr/local/bin/hive-firewall`（防火墙管理工具）
+- `armbian-build/userpatches/overlay/usr/local/bin/hive-fail2ban`（入侵防护管理工具）
 - `armbian-build/userpatches/overlay/etc/update-motd.d/`（自定义 MOTD 显示）
 
 ### 新建（VPS 管理服务）

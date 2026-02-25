@@ -50,7 +50,8 @@ apt-get install -y --no-install-recommends \
     ca-certificates \
     gnupg \
     prometheus-node-exporter \
-    ufw
+    ufw \
+    fail2ban
 
 # ─────────────────────────────────────────────
 # 3. 安装 Tailscale（官方 apt 源）
@@ -147,6 +148,7 @@ fi
 systemctl enable tailscaled.service   # daemon 预启动，tailscale up 由 provision 执行
 systemctl enable prometheus-node-exporter.service
 systemctl enable hive-firewall.service  # 启动时自动配置防火墙
+systemctl enable hive-fail2ban.service  # 启动时自动配置入侵防护
 
 # ─────────────────────────────────────────────
 # 7. 镜像清洗（移除唯一标识，供批量烧录）

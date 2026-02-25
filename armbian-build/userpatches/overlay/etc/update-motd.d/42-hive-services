@@ -75,6 +75,7 @@ check_service "tailscaled" "Tailscale VPN" '[[ -n "${TAILSCALE_OAUTH_SECRET}" ]]
 check_service "provision-node" "Node Provision" "true"
 check_service "prometheus-node-exporter" "Metrics Export" "true"
 check_service "ufw" "Firewall" '[[ "$(ufw status | head -1)" =~ "active" ]]'
+check_service "fail2ban" "Intrusion Prevention" "command -v fail2ban-client"
 
 # Check tunnel services (if they exist)
 if systemctl list-unit-files | grep -q "xray.*service"; then

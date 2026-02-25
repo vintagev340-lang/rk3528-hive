@@ -1,0 +1,270 @@
+#!/bin/bash
+#
+# Hive Network fail2ban 管理工具
+# 简化入侵防护管理
+#
+
+set -e
+
+SCRIPT_NAME="hive-fail2ban"
+
+show_usage() {
+    cat << EOF
+Hive Network fail2ban 管理工具
+
+用法：
+    $SCRIPT_NAME status              显示 fail2ban 状态
+    $SCRIPT_NAME jails               显示所有监狱状态
+    $SCRIPT_NAME banned              显示被封禁的 IP
+    $SCRIPT_NAME unban <IP>          解封指定 IP
+    $SCRIPT_NAME logs                显示 fail2ban 日志
+    $SCRIPT_NAME test                测试配置
+    $SCRIPT_NAME reload              重新加载配置
+    $SCRIPT_NAME help                显示此帮��
+
+示例：
+    $SCRIPT_NAME status
+    $SCRIPT_NAME unban 203.0.113.100
+    $SCRIPT_NAME logs | tail -20
+
+EOF
+}
+
+check_fail2ban() {
+    if ! command -v fail2ban-client >/dev/null 2>&1; then
+        echo "ERROR: fail2ban not installed"
+        exit 1
+    fi
+
+    if [[ "$EUID" -ne 0 ]]; then
+        echo "ERROR: Root privileges required"
+        exit 1
+    fi
+
+    if ! systemctl is-active fail2ban >/dev/null 2>&1; then
+        echo "WARNING: fail2ban service not running"
+        echo "Try: systemctl start fail2ban"
+        exit 1
+    fi
+}
+
+cmd_status() {
+    echo "🛡️  Hive Network fail2ban 状态"
+    echo "============================"
+    echo
+
+    echo "服务状态："
+    systemctl status fail2ban --no-pager -l
+
+    echo
+    echo "监狱概览："
+    fail2ban-client status
+
+    echo
+    echo "🔧 配置文件："
+    echo "  主配置: /etc/fail2ban/jail.d/hive-*.conf"
+    echo "  过滤器: /etc/fail2ban/filter.d/hive-*.conf"
+    echo "  日志文件: /var/log/fail2ban.log"
+}
+
+cmd_jails() {
+    echo "📋 所有监狱详细状态"
+    echo "=================="
+    echo
+
+    # 获取所有启用的监狱
+    jails=$(fail2ban-client status | grep "Jail list:" | sed 's/.*Jail list:[[:space:]]*//' | tr ',' ' ')
+
+    for jail in $jails; do
+        jail=$(echo "$jail" | xargs)  # 去除空格
+        if [[ -n "$jail" ]]; then
+            echo ">>> 监狱: $jail"
+            fail2ban-client status "$jail" 2>/dev/null || echo "  无法获取状态"
+            echo
+        fi
+    done
+}
+
+cmd_banned() {
+    echo "🚫 当前被封禁的 IP"
+    echo "================"
+    echo
+
+    # 获取所有启用的监狱
+    jails=$(fail2ban-client status | grep "Jail list:" | sed 's/.*Jail list:[[:space:]]*//' | tr ',' ' ')
+
+    total_banned=0
+    for jail in $jails; do
+        jail=$(echo "$jail" | xargs)
+        if [[ -n "$jail" ]]; then
+            banned_ips=$(fail2ban-client status "$jail" 2>/dev/null | grep "Banned IP list:" | sed 's/.*Banned IP list:[[:space:]]*//')
+            if [[ -n "$banned_ips" && "$banned_ips" != "" ]]; then
+                echo "监狱 $jail:"
+                for ip in $banned_ips; do
+                    echo "  🚫 $ip"
+                    ((total_banned++))
+                done
+                echo
+            fi
+        fi
+    done
+
+    if [[ $total_banned -eq 0 ]]; then
+        echo "✅ 当前没有被封禁的 IP"
+    else
+        echo "总计: $total_banned 个被封禁的 IP"
+    fi
+
+    echo
+    echo "💡 提示：使用 'hive-fail2ban unban <IP>' 解封特定 IP"
+}
+
+cmd_unban() {
+    local ip="$1"
+
+    if [[ -z "$ip" ]]; then
+        echo "ERROR: 请提供 IP 地址"
+        echo "用法: $SCRIPT_NAME unban <IP>"
+        exit 1
+    fi
+
+    # 验证 IP 格式（简单检查）
+    if [[ ! "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "ERROR: 无效的 IP 地址格式: $ip"
+        exit 1
+    fi
+
+    echo ">>> 尝试解封 IP: $ip"
+
+    # 尝试从所有监狱中解封
+    jails=$(fail2ban-client status | grep "Jail list:" | sed 's/.*Jail list:[[:space:]]*//' | tr ',' ' ')
+
+    unbanned_count=0
+    for jail in $jails; do
+        jail=$(echo "$jail" | xargs)
+        if [[ -n "$jail" ]]; then
+            if fail2ban-client unban "$ip" --jail="$jail" 2>/dev/null; then
+                echo "  ✅ 从 $jail 中解封成功"
+                ((unbanned_count++))
+            fi
+        fi
+    done
+
+    if [[ $unbanned_count -eq 0 ]]; then
+        echo "  ⚠️  IP $ip 未在任何监狱中被封禁"
+    else
+        echo "  ✅ 已从 $unbanned_count 个监狱中解封"
+    fi
+
+    # 同时从 UFW 中移除（如果存在）
+    if ufw status numbered 2>/dev/null | grep -q "$ip"; then
+        echo "  🔥 从 UFW 中移除封禁规则..."
+        ufw --force delete deny from "$ip" 2>/dev/null || true
+    fi
+}
+
+cmd_logs() {
+    echo "📜 fail2ban 日志（最近 50 条）"
+    echo "============================"
+    echo
+
+    if [[ -f "/var/log/fail2ban.log" ]]; then
+        tail -50 /var/log/fail2ban.log
+    else
+        echo "检查 journalctl 日志..."
+        journalctl -u fail2ban --lines=50 --no-pager
+    fi
+}
+
+cmd_test() {
+    echo "🧪 测试 fail2ban 配置"
+    echo "===================="
+    echo
+
+    echo ">>> 配置语法检查..."
+    if fail2ban-client --test; then
+        echo "  ✅ 配置语法正确"
+    else
+        echo "  ❌ 配置有错误"
+        return 1
+    fi
+
+    echo
+    echo ">>> 检查监狱配置..."
+    fail2ban-client status
+
+    echo
+    echo ">>> 检查过滤器..."
+    for filter in /etc/fail2ban/filter.d/hive-*.conf; do
+        if [[ -f "$filter" ]]; then
+            filter_name=$(basename "$filter" .conf)
+            echo "  检查过滤器: $filter_name"
+            fail2ban-regex --test "$filter" 2>/dev/null || echo "    ⚠️  过滤器可能有问题"
+        fi
+    done
+
+    echo
+    echo "✅ 配置测试完成"
+}
+
+cmd_reload() {
+    echo "🔄 重新加载 fail2ban 配置"
+    echo "========================="
+    echo
+
+    echo ">>> 重新加载配置..."
+    fail2ban-client reload
+
+    echo ">>> 等待服务稳定..."
+    sleep 2
+
+    echo ">>> 新配置状态："
+    fail2ban-client status
+
+    echo "✅ 配置重新加载完成"
+}
+
+# 主函数
+main() {
+    case "${1:-}" in
+        "status"|"")
+            check_fail2ban
+            cmd_status
+            ;;
+        "jails")
+            check_fail2ban
+            cmd_jails
+            ;;
+        "banned")
+            check_fail2ban
+            cmd_banned
+            ;;
+        "unban")
+            check_fail2ban
+            cmd_unban "$2"
+            ;;
+        "logs")
+            check_fail2ban
+            cmd_logs
+            ;;
+        "test")
+            check_fail2ban
+            cmd_test
+            ;;
+        "reload")
+            check_fail2ban
+            cmd_reload
+            ;;
+        "help"|"-h"|"--help")
+            show_usage
+            ;;
+        *)
+            echo "ERROR: 未知命令: $1"
+            echo
+            show_usage
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
