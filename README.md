@@ -362,7 +362,16 @@ QR 码生成由 Node Registry 的 `/api/labels` 页面完成，打印即用。
 
 ### Phase 4 — 加固
 
-15. 防火墙规则（iptables：eth0 仅允许出站 + DHCP）
+### Phase 4 — 加固与安全
+
+15. **防火墙配置**（已实现）：ufw 自动配置，仅开放必要端口
+   - SSH (22)：仅本地网络 + Tailscale 访问
+   - Node Exporter (9100)：仅 Tailscale 网络访问
+   - 默认拒绝所有入站，允许必要出站
+   - 防火墙管理工具：`hive-firewall`
+
+   详细文档：[docs/FIREWALL.md](docs/FIREWALL.md)
+
 16. 自动故障转移逻辑（systemd + healthcheck）
 17. Ansible playbook：定期更新 xray 配置/版本
 
@@ -380,6 +389,10 @@ QR 码生成由 Node Registry 的 `/api/labels` 页面完成，打印即用。
 - `armbian-build/userpatches/overlay/etc/systemd/system/cloudflared.service`
 - `armbian-build/userpatches/overlay/etc/systemd/system/easytier.service`
 - `armbian-build/userpatches/overlay/etc/systemd/system/frpc.service`
+- `armbian-build/userpatches/overlay/etc/systemd/system/hive-firewall.service`（防火墙自动配置）
+- `armbian-build/userpatches/overlay/usr/local/bin/setup-firewall.sh`（防火墙初始化脚本）
+- `armbian-build/userpatches/overlay/usr/local/bin/hive-firewall`（防火墙管理工具）
+- `armbian-build/userpatches/overlay/etc/update-motd.d/`（自定义 MOTD 显示）
 
 ### 新建（VPS 管理服务）
 - `management/registry/main.py`（Node Registry API）

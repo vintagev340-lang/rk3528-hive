@@ -1,0 +1,194 @@
+#!/bin/bash
+#
+# Hive Network 防火墙管理工具
+# 简化防火墙规则管理
+#
+
+set -e
+
+SCRIPT_NAME="hive-firewall"
+
+show_usage() {
+    cat << EOF
+Hive Network 防火墙管理工具
+
+用法：
+    $SCRIPT_NAME status              显示防火墙状态
+    $SCRIPT_NAME logs               显示防火墙日志
+    $SCRIPT_NAME rules              显示详细规则
+    $SCRIPT_NAME allow-ssh <IP>     允许指定 IP SSH 访问
+    $SCRIPT_NAME deny-ssh <IP>      拒绝指定 IP SSH 访问
+    $SCRIPT_NAME reset              重置所有规则（危险！）
+    $SCRIPT_NAME help               显示此帮助
+
+示例：
+    $SCRIPT_NAME status
+    $SCRIPT_NAME allow-ssh 203.0.113.100
+    $SCRIPT_NAME logs | tail -20
+
+EOF
+}
+
+check_ufw() {
+    if ! command -v ufw >/dev/null 2>&1; then
+        echo "ERROR: ufw not installed"
+        exit 1
+    fi
+
+    if [[ "$EUID" -ne 0 ]]; then
+        echo "ERROR: Root privileges required"
+        exit 1
+    fi
+}
+
+cmd_status() {
+    echo "🔥 Hive Network 防火墙状态"
+    echo "=========================="
+    echo
+
+    ufw status
+    echo
+
+    echo "📊 连接统计："
+    netstat -nr | head -5 2>/dev/null || ip route | head -5
+    echo
+
+    echo "🚪 开放端口："
+    ss -tulpn | grep LISTEN | grep -E ":(22|9100|443)" || echo "  未检测到标准服务端口"
+}
+
+cmd_logs() {
+    echo "🔍 防火墙日志（最近 50 条）"
+    echo "========================"
+    echo
+
+    if [[ -f "/var/log/ufw.log" ]]; then
+        tail -50 /var/log/ufw.log
+    else
+        echo "检查 journalctl 日志..."
+        journalctl -u ufw --lines=50 --no-pager
+    fi
+}
+
+cmd_rules() {
+    echo "📋 详细防火墙规则"
+    echo "================"
+    echo
+
+    ufw status verbose
+    echo
+
+    echo "原始 iptables 规则："
+    iptables -L ufw-user-input 2>/dev/null | head -10 || echo "  ufw 规则链未找到"
+}
+
+cmd_allow_ssh() {
+    local ip="$1"
+
+    if [[ -z "$ip" ]]; then
+        echo "ERROR: 请提供 IP 地址"
+        echo "用法: $SCRIPT_NAME allow-ssh <IP>"
+        exit 1
+    fi
+
+    # 验证 IP 格式（简单检查）
+    if [[ ! "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(/[0-9]+)?$ ]]; then
+        echo "ERROR: 无效的 IP 地址格式: $ip"
+        echo "示例: 192.168.1.100 或 192.168.1.0/24"
+        exit 1
+    fi
+
+    echo ">>> 添加 SSH 访问规则: $ip"
+    ufw allow from "$ip" to any port 22 comment "SSH - Manual Allow $(date +%Y%m%d)"
+
+    echo "✅ 规则已添加"
+    echo "当前 SSH 规则："
+    ufw status | grep -E "(22|ssh)" || echo "  未找到 SSH 规则"
+}
+
+cmd_deny_ssh() {
+    local ip="$1"
+
+    if [[ -z "$ip" ]]; then
+        echo "ERROR: 请提供 IP 地址"
+        echo "用法: $SCRIPT_NAME deny-ssh <IP>"
+        exit 1
+    fi
+
+    echo ">>> 移除 SSH 访问规则: $ip"
+
+    # 尝试移除规则
+    if ufw delete allow from "$ip" to any port 22; then
+        echo "✅ 规则已移除"
+    else
+        echo "⚠️  规则可能不存在或已移除"
+    fi
+
+    echo "当前 SSH 规则："
+    ufw status | grep -E "(22|ssh)" || echo "  未找到 SSH 规则"
+}
+
+cmd_reset() {
+    echo "⚠️  警告：这将重置所有防火墙规则！"
+    echo "⚠️  您可能会失去 SSH 连接！"
+    echo
+    read -p "确认重置？(输入 YES 确认): " confirm
+
+    if [[ "$confirm" == "YES" ]]; then
+        echo ">>> 重置防火墙规则..."
+        ufw --force reset
+
+        echo ">>> 重新运行初始化脚本..."
+        if [[ -x "/usr/local/bin/setup-firewall.sh" ]]; then
+            /usr/local/bin/setup-firewall.sh
+        else
+            echo "ERROR: /usr/local/bin/setup-firewall.sh not found"
+            exit 1
+        fi
+
+        echo "✅ 防火墙已重置并重新配置"
+    else
+        echo "❌ 操作取消"
+    fi
+}
+
+# 主函数
+main() {
+    case "${1:-}" in
+        "status"|"")
+            check_ufw
+            cmd_status
+            ;;
+        "logs")
+            check_ufw
+            cmd_logs
+            ;;
+        "rules")
+            check_ufw
+            cmd_rules
+            ;;
+        "allow-ssh")
+            check_ufw
+            cmd_allow_ssh "$2"
+            ;;
+        "deny-ssh")
+            check_ufw
+            cmd_deny_ssh "$2"
+            ;;
+        "reset")
+            check_ufw
+            cmd_reset
+            ;;
+        "help"|"-h"|"--help")
+            show_usage
+            ;;
+        *)
+            echo "ERROR: 未知命令: $1"
+            echo
+            show_usage
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

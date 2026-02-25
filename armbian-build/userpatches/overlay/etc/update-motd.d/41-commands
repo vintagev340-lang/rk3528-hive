@@ -38,6 +38,8 @@ list=(
     "Tailscale Status","","tailscale status","command -v tailscale"
     "Service Logs","","journalctl -f --no-hostname","true"
     "Hive Config","","cat /etc/hive/config.env","[[ -f /etc/hive/config.env ]]"
+    "Firewall Status","","hive-firewall status","command -v ufw"
+    "Firewall Logs","","hive-firewall logs","command -v ufw"
 )
 
 # verify if command exits on the system
