@@ -37,9 +37,40 @@ echo ">>> Device: ${HOSTNAME}  MAC: ${MAC}  IFACE: ${IFACE}"
 hostnamectl set-hostname "$HOSTNAME"
 grep -q "$HOSTNAME" /etc/hosts || echo "127.0.1.1 $HOSTNAME" >> /etc/hosts
 systemd-machine-id-setup --commit
+
+# ── 确定性 SSH Host Key（基于 MAC，重刷镜像不改 fingerprint）────────
+echo ">>> Generating deterministic SSH host keys from MAC..."
 rm -f /etc/ssh/ssh_host_*
-ssh-keygen -A
-echo ">>> Identity set."
+
+# SHA-256(domain:MAC) → 32 字节 Ed25519 seed
+SEED_HEX=$(printf 'hive-ssh-ed25519:%s' "${MAC}" | sha256sum | awk '{print $1}')
+
+# 构造 PKCS8 DER（固定前缀 + 32 字节 seed），转成 PEM
+# PKCS8 Ed25519 DER 前缀：302e020100300506032b657004220420
+PKCS8_B64=$(python3 -c "
+import base64
+der = bytes.fromhex('302e020100300506032b657004220420' + '${SEED_HEX}')
+b64 = base64.b64encode(der).decode()
+print('\n'.join(b64[i:i+64] for i in range(0, len(b64), 64)))
+")
+
+printf -- '-----BEGIN PRIVATE KEY-----\n%s\n-----END PRIVATE KEY-----\n' \
+    "${PKCS8_B64}" > /etc/ssh/ssh_host_ed25519_key
+
+# 转成 OpenSSH 私钥格式（sshd 标准格式）
+ssh-keygen -P "" -N "" -p -m OpenSSH -f /etc/ssh/ssh_host_ed25519_key >/dev/null 2>&1
+
+# 导出公钥
+ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key > /etc/ssh/ssh_host_ed25519_key.pub
+chmod 600 /etc/ssh/ssh_host_ed25519_key
+chmod 644 /etc/ssh/ssh_host_ed25519_key.pub
+
+# RSA / ECDSA 仍随机生成（兼容旧客户端，fingerprint 不关键）
+ssh-keygen -q -t rsa -b 3072 -N "" -f /etc/ssh/ssh_host_rsa_key
+ssh-keygen -q -t ecdsa -N "" -f /etc/ssh/ssh_host_ecdsa_key
+# ──────────────────────────────────────────────────────────────────────
+
+echo ">>> Identity set. Ed25519 fingerprint bound to MAC ${MAC}"
 
 # ─────────────────────────────────────────────
 # 2. xray UUID（每台唯一）
