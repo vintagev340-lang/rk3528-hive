@@ -12,7 +12,7 @@ set -e
 cd "$(dirname "$0")/.."
 ROOT_DIR="$(pwd)"
 
-echo "=== Edge Fleet Management Setup ==="
+echo "=== Edge Hive Management Setup ==="
 
 # ─────────────────────────────────────────────
 # 1. 安装 Docker
