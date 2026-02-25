@@ -170,7 +170,7 @@ tailscale up \
     --authkey="${TAILSCALE_OAUTH_SECRET}" \
     --hostname="${HOSTNAME}" \
     --accept-dns=false \
-    --advertise-tags=tag:edge-node \
+    --advertise-tags=tag:hive \
     || echo ">>> Tailscale up failed (will retry on next boot via tailscaled)"
 
 # ─────────────────────────────────────────────
