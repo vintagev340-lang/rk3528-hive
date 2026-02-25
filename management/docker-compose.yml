@@ -1,5 +1,7 @@
 services:
   prometheus:
+    env_file:
+      - ../.env
     image: prom/prometheus:latest
     container_name: prometheus
     restart: unless-stopped
@@ -20,6 +22,8 @@ services:
       - monitoring
 
   grafana:
+    env_file:
+      - ../.env
     image: grafana/grafana:latest
     container_name: grafana
     restart: unless-stopped
