@@ -52,7 +52,8 @@ apt-get install -y --no-install-recommends \
     prometheus-node-exporter \
     ufw \
     fail2ban \
-    zsh
+    zsh \
+    netstat
 
 # ─────────────────────────────────────────────
 # 3. 安装 Tailscale（官方 apt 源）
