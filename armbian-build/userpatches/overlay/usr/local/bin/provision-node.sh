@@ -79,11 +79,13 @@ chmod 600 /root/.ssh/authorized_keys
 echo ">>> $(wc -l < /root/.ssh/authorized_keys) authorized keys installed."
 
 # ─────────────────────────────────────────────
-# 2. xray UUID（每台唯一）
+# 2. xray UUID（确定性，基于 MAC，重刷不变）
 # ─────────────────────────────────────────────
-UUID=$(cat /proc/sys/kernel/random/uuid)
+UUID_HEX=$(printf 'hive-xray-uuid:%s' "${MAC}" | sha256sum | awk '{print $1}')
+# 取前 32 hex 构造 UUID v4 格式（设置 version=4, variant=10xx）
+UUID="${UUID_HEX:0:8}-${UUID_HEX:8:4}-4${UUID_HEX:13:3}-$(printf '%x' $(( 0x${UUID_HEX:16:2} & 0x3f | 0x80 )))${UUID_HEX:18:2}-${UUID_HEX:20:12}"
 sed -i "s/%%XRAY_UUID%%/${UUID}/g" /etc/xray/config.json
-echo ">>> xray UUID: ${UUID}"
+echo ">>> xray UUID: ${UUID} (deterministic from MAC)"
 
 # ─────────────────────────────────────────────
 # 3. 三套管理通道地址（全部从 MAC6 确定性推导）
