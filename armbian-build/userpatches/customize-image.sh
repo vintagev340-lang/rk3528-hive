@@ -40,6 +40,37 @@ net.ipv4.tcp_fastopen = 3
 net.ipv4.tcp_congestion_control = bbr
 EOF
 
+# 内核安全加固
+cat > /etc/sysctl.d/99-hive-security.conf << 'EOF'
+# 防 SYN flood
+net.ipv4.tcp_syncookies = 1
+
+# 防 IP 欺骗（反向路径过滤）
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+
+# 禁止 ICMP 重定向
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+
+# 禁止源路由
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+
+# 忽略伪造 ICMP 错误
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+
+# 记录异常包（Martian packets）
+net.ipv4.conf.all.log_martians = 1
+net.ipv4.conf.default.log_martians = 1
+
+# ASLR（地址空间随机化）
+kernel.randomize_va_space = 2
+EOF
+
 # ─────────────────────────────────────────────
 # 2. 安装运行时依赖
 # ─────────────────────────────────────────────
@@ -52,6 +83,8 @@ apt-get install -y --no-install-recommends \
     prometheus-node-exporter \
     ufw \
     fail2ban \
+    unattended-upgrades \
+    auditd \
     zsh \
     net-tools \
     vim
@@ -132,12 +165,36 @@ systemctl mask armbian-firstrun.service 2>/dev/null || true
 # 设置root默认shell为zsh
 chsh -s /bin/zsh root
 
-# 允许root通过SSH登录
-echo ">>> Configuring SSH for root access..."
-sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-sed -i 's/PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+# SSH 安全加固：仅允许密钥登录
+echo ">>> Hardening SSH configuration..."
+cat > /etc/ssh/sshd_config.d/99-hive-hardening.conf << 'EOF'
+PermitRootLogin yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+MaxAuthTries 3
+LoginGraceTime 30
+X11Forwarding no
+AllowAgentForwarding no
+EOF
 
 echo ">>> First login interactive setup completely disabled - root only mode"
+
+# 自动安全更新
+echo ">>> Configuring unattended-upgrades..."
+cat > /etc/apt/apt.conf.d/50unattended-upgrades << 'EOF'
+Unattended-Upgrade::Allowed-Origins {
+    "${distro_id}:${distro_codename}-security";
+};
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::Automatic-Reboot "false";
+EOF
+
+cat > /etc/apt/apt.conf.d/20auto-upgrades << 'EOF'
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+APT::Periodic::AutocleanInterval "7";
+EOF
 
 # ─────────────────────────────────────────────
 # 6. 启用服务（只启用 provision-node，其余由它在首次启动时 enable）
@@ -154,6 +211,8 @@ systemctl enable tailscaled.service   # daemon 预启动，tailscale up 由 prov
 systemctl enable prometheus-node-exporter.service
 systemctl enable hive-firewall.service  # 启动时自动配置防火墙
 systemctl enable hive-fail2ban.service  # 启动时自动配置入侵防护
+systemctl enable auditd.service        # 系统审计日志
+systemctl enable unattended-upgrades.service  # 自动安全更新
 
 # ─────────────────────────────────────────────
 # 7. 镜像清洗（移除唯一标识，供批量烧录）

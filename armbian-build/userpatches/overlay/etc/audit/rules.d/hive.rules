@@ -1,0 +1,14 @@
+# Hive Node 审计规则
+
+# 监控 SSH 配置变更
+-w /etc/ssh/sshd_config -p wa -k ssh_config
+-w /etc/ssh/sshd_config.d/ -p wa -k ssh_config
+-w /root/.ssh/ -p wa -k root_ssh
+
+# 监控认证相关文件
+-w /etc/shadow -p wa -k shadow_change
+-w /etc/passwd -p wa -k identity
+-w /etc/group -p wa -k identity
+
+# 监控 Hive 配置
+-w /etc/hive/ -p wa -k hive_config
