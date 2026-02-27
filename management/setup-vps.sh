@@ -120,8 +120,10 @@ else
     make -C "${REGISTRY_DIR}" build
 fi
 
-cp "${REGISTRY_BIN}" /usr/local/bin/hive-registry
-chmod +x /usr/local/bin/hive-registry
+# cp → mv 两步：mv 是原子 inode 替换，不会触发 "Text file busy"（服务运行中也安全）
+cp "${REGISTRY_BIN}" /usr/local/bin/hive-registry.new
+chmod +x /usr/local/bin/hive-registry.new
+mv /usr/local/bin/hive-registry.new /usr/local/bin/hive-registry
 echo ">>> hive-registry built and installed"
 
 # 写入 EnvironmentFile（每次执行都刷新，确保密码等变量同步）
