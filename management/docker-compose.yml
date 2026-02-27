@@ -5,23 +5,21 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"   # 让容器能访问宿主机端口（node-exporter 9100）
+    # host 网络模式：直接共享宿主机网络栈，可访问 tailscale0 接口抓取节点指标
+    network_mode: host
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=30d'
       - '--web.enable-lifecycle'
-      - '--web.external-url=${PROMETHEUS_EXTERNAL_URL}' # 保持 https://.../prometheus          # 容器内部路由保持 /metrics /targets，nginx 负责剥离前缀
+      - '--web.listen-address=127.0.0.1:4230'           # 绑定本地，nginx 反代
+      - '--web.external-url=${PROMETHEUS_EXTERNAL_URL:-/prometheus/}'
+      - '--web.route-prefix=/'                           # 容器内路由保持 /，nginx 负责剥前缀
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/rules:/etc/prometheus/rules:ro
-      - ./prometheus/targets:/etc/prometheus/targets:ro   # update-targets.sh 写这里
+      - ./prometheus/targets:/etc/prometheus/targets:ro
       - prometheus_data:/prometheus
-    ports:
-      - "127.0.0.1:4230:9090"            # 只绑定本地，通过 Tailscale SSH 转发访问
-    networks:
-      - monitoring
 
   grafana:
     env_file:
@@ -29,20 +27,19 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"             # 让容器访问宿主机上的 Prometheus
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-changeme}
       - GF_USERS_ALLOW_SIGN_UP=false
-      # root_url 末尾必须有 /，否则 Grafana 拼接静态资源路径会出错
       - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-https://example.com/grafana}
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     ports:
-      - "127.0.0.1:4231:3000"            # 同上，只绑本地
-    depends_on:
-      - prometheus
+      - "127.0.0.1:4231:3000"
     networks:
       - monitoring
 

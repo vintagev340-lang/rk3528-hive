@@ -18,9 +18,9 @@ scrape_configs:
       - source_labels: [hostname]
         target_label: instance
 
-  # 管理 VPS 自身（host.docker.internal 指向宿主机，需 extra_hosts: host-gateway）
+  # 管理 VPS 自身（host 网络模式下 localhost 即宿主机）
   - job_name: 'management-server'
     static_configs:
-      - targets: ['host.docker.internal:9100']
+      - targets: ['localhost:9100']
         labels:
           instance: 'management'
