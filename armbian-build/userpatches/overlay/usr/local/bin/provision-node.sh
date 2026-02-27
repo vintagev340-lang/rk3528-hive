@@ -54,15 +54,14 @@ b64 = base64.b64encode(der).decode()
 print('\n'.join(b64[i:i+64] for i in range(0, len(b64), 64)))
 ")
 
-printf -- '-----BEGIN PRIVATE KEY-----\n%s\n-----END PRIVATE KEY-----\n' \
-    "${PKCS8_B64}" > /etc/ssh/ssh_host_ed25519_key
+(umask 077; printf -- '-----BEGIN PRIVATE KEY-----\n%s\n-----END PRIVATE KEY-----\n' \
+    "${PKCS8_B64}" > /etc/ssh/ssh_host_ed25519_key)
 
 # 转成 OpenSSH 私钥格式（sshd 标准格式）
 ssh-keygen -P "" -N "" -p -m OpenSSH -f /etc/ssh/ssh_host_ed25519_key >/dev/null 2>&1
 
 # 导出公钥
 ssh-keygen -y -f /etc/ssh/ssh_host_ed25519_key > /etc/ssh/ssh_host_ed25519_key.pub
-chmod 600 /etc/ssh/ssh_host_ed25519_key
 chmod 644 /etc/ssh/ssh_host_ed25519_key.pub
 
 # RSA / ECDSA 仍随机生成（兼容旧客户端，fingerprint 不关键）
