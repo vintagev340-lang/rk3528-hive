@@ -60,22 +60,65 @@ fi
 # ─────────────────────────────────────────────
 # 3. 安装依赖工具
 # ─────────────────────────────────────────────
-apt-get install -y --no-install-recommends jq curl
+apt-get install -y --no-install-recommends jq curl make
 
 # ─────────────────────────────────────────────
-# 4. 安装 hive-registry（Go 单二进制）
+# 4. 安装 Go（若缺失或版本过旧）
 # ─────────────────────────────────────────────
-echo ">>> Installing hive-registry..."
+GO_MIN="1.22"
+need_go=false
+if ! command -v go &>/dev/null; then
+    need_go=true
+else
+    GO_VER=$(go version | awk '{print $3}' | sed 's/go//')
+    # 简单比较：主版本号满足即可
+    GO_MAJOR=$(echo "$GO_VER" | cut -d. -f1-2)
+    if awk "BEGIN{exit !($GO_MAJOR < $GO_MIN)}"; then
+        need_go=true
+    fi
+fi
 
-REGISTRY_BIN="${ROOT_DIR}/management/registry/hive-registry"
-if [ ! -f "${REGISTRY_BIN}" ]; then
-    echo "!!! Binary not found at ${REGISTRY_BIN}"
-    echo "    Run 'make build' (or 'make build-arm64') in management/registry/ first."
-    exit 1
+if $need_go; then
+    echo ">>> Installing Go ${GO_MIN}+..."
+    ARCH=$(dpkg --print-architecture)
+    case "$ARCH" in
+        amd64) GOARCH=amd64 ;;
+        arm64) GOARCH=arm64 ;;
+        *)     echo "!!! Unsupported arch: $ARCH"; exit 1 ;;
+    esac
+    GO_VER_INSTALL="1.22.5"
+    GO_TAR="go${GO_VER_INSTALL}.linux-${GOARCH}.tar.gz"
+    curl -fsSL "https://go.dev/dl/${GO_TAR}" -o "/tmp/${GO_TAR}"
+    rm -rf /usr/local/go
+    tar -C /usr/local -xzf "/tmp/${GO_TAR}"
+    rm -f "/tmp/${GO_TAR}"
+    export PATH=$PATH:/usr/local/go/bin
+    echo ">>> Go installed: $(go version)"
+else
+    echo ">>> Go already installed: $(go version)"
+    export PATH=$PATH:/usr/local/go/bin
+fi
+
+# ─────────────────────────────────────────────
+# 5. 编译并安装 hive-registry
+# ─────────────────────────────────────────────
+echo ">>> Building hive-registry..."
+
+REGISTRY_DIR="${ROOT_DIR}/management/registry"
+REGISTRY_BIN="${REGISTRY_DIR}/hive-registry"
+
+# 检测目标架构决定 make 目标
+ARCH=$(dpkg --print-architecture)
+if [ "$ARCH" = "arm64" ]; then
+    make -C "${REGISTRY_DIR}" build-arm64
+    REGISTRY_BIN="${REGISTRY_DIR}/hive-registry-arm64"
+else
+    make -C "${REGISTRY_DIR}" build
 fi
 
 cp "${REGISTRY_BIN}" /usr/local/bin/hive-registry
 chmod +x /usr/local/bin/hive-registry
+echo ">>> hive-registry built and installed"
 
 # 写入 EnvironmentFile（每次执行都刷新，确保密码等变量同步）
 cat > /etc/hive-registry.env << EOF
@@ -120,7 +163,7 @@ systemctl restart hive-registry
 echo ">>> hive-registry: $(systemctl is-active hive-registry)"
 
 # ─────────────────────────────────────────────
-# 5. 创建运行时目录
+# 6. 创建运行时目录
 # ─────────────────────────────────────────────
 mkdir -p "${ROOT_DIR}/management/prometheus/targets"
 # 只在文件不存在时初始化，避免覆盖已有数据
@@ -128,7 +171,7 @@ mkdir -p "${ROOT_DIR}/management/prometheus/targets"
     echo "[]" > "${ROOT_DIR}/management/prometheus/targets/nodes.json"
 
 # ─────────────────────────────────────────────
-# 6. 启动 Prometheus + Grafana
+# 7. 启动 Prometheus + Grafana
 # ─────────────────────────────────────────────
 echo ">>> Starting Prometheus + Grafana..."
 cd "${ROOT_DIR}/management"
@@ -136,7 +179,7 @@ docker compose up -d --remove-orphans
 cd "${ROOT_DIR}"
 
 # ─────────────────────────────────────────────
-# 7. cron：每分钟从 hive-registry 刷新 Prometheus 节点列表
+# 8. cron：每分钟从 hive-registry 刷新 Prometheus 节点列表
 # ─────────────────────────────────────────────
 REGISTRY_LOCAL_URL="http://${REGISTRY_LISTEN_ADDR:-127.0.0.1:8080}"
 TARGETS_FILE="${ROOT_DIR}/management/prometheus/targets/nodes.json"
