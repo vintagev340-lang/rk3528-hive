@@ -51,7 +51,7 @@ output=()
 for l in "${list[@]}"
 do
 	IFS=',' read -r name sudo command condition <<< "$l"
-	if [[ "${condition}" == "true" ]] || eval "${condition}" 2> /dev/null; then
+	if [[ "${condition}" == "true" ]] || eval "${condition}" &> /dev/null; then
 		if [[ "${command}" == *" "* ]] || command -v "${command%% *}" &> /dev/null; then
 			# seek for maximum description length
 			if [[ ${#name} -ge ${name_len} ]]; then
