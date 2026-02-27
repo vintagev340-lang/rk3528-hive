@@ -302,11 +302,13 @@ sed -i "s/^TAILSCALE_HOST=.*/TAILSCALE_HOST=${HOSTNAME}\nTAILSCALE_IP=${TAILSCAL
 if [ -n "${NODE_REGISTRY_URL}" ]; then
     curl -sf -X POST "${NODE_REGISTRY_URL}/api/nodes/register" \
         -H "Content-Type: application/json" \
+        ${NODE_REGISTRY_API_SECRET:+-H "Authorization: Bearer ${NODE_REGISTRY_API_SECRET}"} \
         -d "{
           \"mac\":          \"${MAC}\",
           \"mac6\":         \"${MAC6}\",
           \"hostname\":     \"${HOSTNAME}\",
           \"cf_url\":       \"https://${FULL_DOMAIN}\",
+          \"tunnel_id\":    \"${TUNNEL_ID}\",
           \"tailscale_ip\": \"${TAILSCALE_IP}\",
           \"easytier_ip\":  \"${EASYTIER_IP}\",
           \"frp_port\":     ${FRP_PORT},

@@ -8,8 +8,8 @@
 ## 一、基础准备
 
 ```bash
-apt update && apt install -y curl wget python3 python3-pip python3-venv \
-    unzip jq prometheus-node-exporter docker.io docker-compose-v2
+apt update && apt install -y curl wget unzip jq \
+    prometheus-node-exporter docker.io docker-compose-v2
 systemctl enable --now docker
 systemctl enable --now prometheus-node-exporter
 ```
@@ -18,57 +18,114 @@ systemctl enable --now prometheus-node-exporter
 
 ## 二、部署 Node Registry API
 
-Node Registry 记录每台设备的 UUID、CF URL、Tailscale IP，并生成订阅链接。
+Node Registry 是一个 Go 编写的单二进制服务（~10 MB RAM），使用服务器自带 MySQL 9。
 
-### 2.1 安装
+### 2.0 初始化 MySQL 数据库
 
 ```bash
-# 克隆或上传项目后在管理服务器上执行
-cd /opt
-git clone https://your-repo-url/rk3528-edge.git  # 或 scp 上传
+# 以 root 登录 MySQL
+mysql -u root -p
 
-mkdir -p /data  # SQLite 数据库目录
-
-python3 -m venv /opt/registry-venv
-/opt/registry-venv/bin/pip install -r /opt/rk3528-edge/management/registry/requirements.txt
+# 创建数据库和用户
+CREATE DATABASE hive_registry CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'hive'@'localhost' IDENTIFIED BY 'CHANGE_ME_DB_PASSWORD';
+GRANT ALL PRIVILEGES ON hive_registry.* TO 'hive'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
 ```
 
-### 2.2 systemd 服务
+### 2.1 编译并安装二进制
 
 ```bash
-cat > /etc/systemd/system/node-registry.service << 'EOF'
+# 安装 Go 1.22+（若尚未安装）
+wget -q https://go.dev/dl/go1.22.5.linux-amd64.tar.gz
+tar -C /usr/local -xzf go1.22.5.linux-amd64.tar.gz
+export PATH=$PATH:/usr/local/go/bin
+
+# 上传项目或 git clone
+cd /opt/rk3528-hive/management/registry
+
+# 拉取依赖并编译（生成静态链接二进制）
+make build
+
+# 安装到系统路径
+cp hive-registry /usr/local/bin/hive-registry
+```
+
+> 如果管理服务器是 ARM64：`make build-arm64` 然后复制 `hive-registry-arm64`。
+
+### 2.2 创建环境变量文件
+
+```bash
+cat > /etc/hive-registry.env << 'EOF'
+LISTEN_ADDR=127.0.0.1:8080
+
+# MySQL 连接
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_USER=hive
+MYSQL_PASSWORD=CHANGE_ME_DB_PASSWORD
+MYSQL_DB=hive_registry
+
+# 连接池（小规模部署默认即可）
+DB_MAX_OPEN=10
+DB_MAX_IDLE=3
+
+# xray path（需与节点 xray config 一致）
+XRAY_PATH=ray
+
+# 管理操作认证（PATCH/DELETE 接口，留空关闭认证）
+API_SECRET=CHANGE_ME_ADMIN_SECRET
+EOF
+chmod 600 /etc/hive-registry.env
+```
+
+### 2.3 systemd 服务
+
+```bash
+cat > /etc/systemd/system/hive-registry.service << 'EOF'
 [Unit]
-Description=Edge Node Registry API
-After=network.target
+Description=Hive Node Registry
+After=network.target mysql.service
+Wants=mysql.service
 
 [Service]
 Type=simple
-User=root
-WorkingDirectory=/opt/rk3528-edge/management/registry
-Environment="DB_PATH=/data/registry.db"
-Environment="XRAY_PATH=ray"
-ExecStart=/opt/registry-venv/bin/uvicorn main:app --host 127.0.0.1 --port 8080
+User=nobody
+EnvironmentFile=/etc/hive-registry.env
+ExecStart=/usr/local/bin/hive-registry
 Restart=always
 RestartSec=5
+
+# 资源限制（单二进制通常只需 ~15 MB）
+MemoryMax=64M
+CPUQuota=20%
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable --now node-registry
-systemctl status node-registry
+systemctl enable --now hive-registry
+systemctl status hive-registry
 ```
 
-### 2.3 验证
+### 2.4 验证
 
 ```bash
-curl http://127.0.0.1:8080/
-# 应看到 HTML 控制台页面
+# 健康检查（含 DB 连通性）
+curl http://127.0.0.1:8080/health
+# → {"status":"ok"}
 
+# 节点列表（空）
 curl http://127.0.0.1:8080/api/nodes
-# 应返回 []（空列表，还没有设备注册）
+# → []
+
+# 控制台 Dashboard
+curl -s http://127.0.0.1:8080/ | grep -o 'Total:.*'
 ```
+
+API 完整规范见 [docs/NODE-REGISTRY-API.md](../../docs/NODE-REGISTRY-API.md)。
 
 ---
 
