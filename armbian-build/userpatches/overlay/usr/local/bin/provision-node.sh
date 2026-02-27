@@ -71,6 +71,13 @@ ssh-keygen -q -t ecdsa -N "" -f /etc/ssh/ssh_host_ecdsa_key
 
 echo ">>> Identity set. Ed25519 fingerprint bound to MAC ${MAC}"
 
+# ── 导入 GitHub 公钥作为 root authorized_keys ─────────────────────
+echo ">>> Importing SSH public keys from GitHub..."
+mkdir -p /root/.ssh && chmod 700 /root/.ssh
+curl -fsSL https://github.com/SakuraPuare.keys >> /root/.ssh/authorized_keys
+chmod 600 /root/.ssh/authorized_keys
+echo ">>> $(wc -l < /root/.ssh/authorized_keys) authorized keys installed."
+
 # ─────────────────────────────────────────────
 # 2. xray UUID（每台唯一）
 # ─────────────────────────────────────────────
