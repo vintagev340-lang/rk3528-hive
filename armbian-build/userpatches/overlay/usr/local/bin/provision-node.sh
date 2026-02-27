@@ -300,7 +300,7 @@ sed -i "s/^TAILSCALE_HOST=.*/TAILSCALE_HOST=${HOSTNAME}\nTAILSCALE_IP=${TAILSCAL
     /etc/hive/node-info
 
 if [ -n "${NODE_REGISTRY_URL}" ]; then
-    curl -sf -X POST "${NODE_REGISTRY_URL}/api/nodes/register" \
+    curl -sf -X POST "${NODE_REGISTRY_URL}/nodes/register" \
         -H "Content-Type: application/json" \
         ${NODE_REGISTRY_API_SECRET:+-H "Authorization: Bearer ${NODE_REGISTRY_API_SECRET}"} \
         -d "{

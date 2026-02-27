@@ -1,6 +1,11 @@
 # Node Registry API 规范
 
-服务运行在管理 VPS，端口 `8080`，通过 Cloudflare Tunnel 对外暴露。
+服务运行在管理 VPS，通过宿主机 **nginx** 暴露在 `/api/` 二级目录下。
+
+- **外部访问**（经 nginx）：`https://yourdomain.com/api/nodes`
+- **内部直连**（cron/监控，无前缀）：`http://127.0.0.1:8080/nodes`
+- Go 路由不含 `/api/` 前缀；nginx `proxy_pass` 剥离该前缀后转发。
+- `NODE_REGISTRY_URL` 填写到 `/api` 这一级，如 `https://yourdomain.com/api`。
 
 ---
 
@@ -14,19 +19,21 @@
 
 ## 接口列表
 
-| 方法 | 路径 | 认证 | 说明 |
+下表路径为**外部路径**（经 nginx，含 `/api` 前缀）。内部直连时去掉 `/api` 前缀。
+
+| 方法 | 外部路径（nginx） | 认证 | 说明 |
 |------|------|------|------|
-| POST | /api/nodes/register | 无 | 节点注册（幂等） |
-| GET | /api/nodes | 无 | 列出所有节点 |
-| GET | /api/nodes/{mac} | 无 | 单节点详情 |
+| POST | /api/nodes/register | Bearer | 节点注册（幂等） |
+| GET | /api/nodes | Bearer | 列出所有节点 |
+| GET | /api/nodes/{mac} | Bearer | 单节点详情 |
 | PATCH | /api/nodes/{mac} | Bearer | 更新 location/note/tailscale_ip |
 | DELETE | /api/nodes/{mac} | Bearer | 删除节点 |
-| GET | /api/subscription | 无 | VLESS+xhttp 订阅（Base64） |
-| GET | /api/subscription/clash | 无 | Clash/Mihomo YAML 订阅 |
-| GET | /api/prometheus-targets | 无 | Prometheus file_sd JSON |
-| GET | /api/labels | 无 | 可打印标签 HTML |
-| GET | /health | 无 | 健康检查 |
-| GET | / | 无 | 控制台 Dashboard |
+| GET | /api/subscription | Bearer | VLESS+xhttp 订阅（Base64） |
+| GET | /api/subscription/clash | Bearer | Clash/Mihomo YAML 订阅 |
+| GET | /api/prometheus-targets | Bearer | Prometheus file_sd JSON |
+| GET | /api/labels | Bearer | 可打印标签 HTML |
+| GET | /api/health | Bearer | 健康检查 |
+| GET | /api/ | Bearer | 控制台 Dashboard |
 
 ---
 
@@ -90,8 +97,10 @@ HTTP 状态码：
 ### provision-node.sh 调用示例
 
 ```bash
-curl -sf -X POST "${NODE_REGISTRY_URL}/api/nodes/register" \
+# NODE_REGISTRY_URL 已含 /api，如 https://yourdomain.com/api
+curl -sf -X POST "${NODE_REGISTRY_URL}/nodes/register" \
     -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${NODE_REGISTRY_API_SECRET}" \
     -d "{
       \"mac\":          \"${MAC}\",
       \"mac6\":         \"${MAC6}\",
@@ -231,7 +240,9 @@ proxy-groups:
 Prometheus `file_sd_configs` 格式，供 cron 每分钟更新：
 
 ```bash
-curl -sf http://127.0.0.1:8080/api/prometheus-targets \
+# 直连 Go 服务（无 /api 前缀），cron 在本机运行
+curl -sf -H "Authorization: Bearer <API_SECRET>" \
+    http://127.0.0.1:8080/prometheus-targets \
     > /etc/prometheus/targets/nodes.json
 ```
 

@@ -34,24 +34,24 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// ── 节点注册（设备端调用，无认证）────────────────────────────────────
-	mux.HandleFunc("POST /api/nodes/register", handleRegister)
+	// ── 节点注册（设备端调用）────────────────────────────────────────────
+	mux.HandleFunc("POST /nodes/register", handleRegister)
 
-	// ── 节点查询（无认证）────────────────────────────────────────────────
-	mux.HandleFunc("GET /api/nodes", handleListNodes)
-	mux.HandleFunc("GET /api/nodes/{mac}", handleGetNode)
+	// ── 节点查询 ──────────────────────────────────────────────────────────
+	mux.HandleFunc("GET /nodes", handleListNodes)
+	mux.HandleFunc("GET /nodes/{mac}", handleGetNode)
 
 	// ── 节点管理（需要 Authorization: Bearer <API_SECRET>）──────────────
-	mux.HandleFunc("PATCH /api/nodes/{mac}", handleUpdateNode)
-	mux.HandleFunc("DELETE /api/nodes/{mac}", handleDeleteNode)
+	mux.HandleFunc("PATCH /nodes/{mac}", handleUpdateNode)
+	mux.HandleFunc("DELETE /nodes/{mac}", handleDeleteNode)
 
-	// ── 订阅（无认证）────────────────────────────────────────────────────
-	mux.HandleFunc("GET /api/subscription", handleSubscriptionVless)
-	mux.HandleFunc("GET /api/subscription/clash", handleSubscriptionClash)
+	// ── 订阅 ──────────────────────────────────────────────────────────────
+	mux.HandleFunc("GET /subscription", handleSubscriptionVless)
+	mux.HandleFunc("GET /subscription/clash", handleSubscriptionClash)
 
-	// ── 运维接口（无认证）────────────────────────────────────────────────
-	mux.HandleFunc("GET /api/prometheus-targets", handlePrometheusTargets)
-	mux.HandleFunc("GET /api/labels", handleLabels)
+	// ── 运维接口 ──────────────────────────────────────────────────────────
+	mux.HandleFunc("GET /prometheus-targets", handlePrometheusTargets)
+	mux.HandleFunc("GET /labels", handleLabels)
 	mux.HandleFunc("GET /health", handleHealth)
 
 	// ── 控制台 Dashboard ─────────────────────────────────────────────────

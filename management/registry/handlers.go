@@ -225,9 +225,9 @@ func handleDeleteNode(w http.ResponseWriter, r *http.Request) {
 
 // ── Prometheus ────────────────────────────────────────────────────────────────
 
-// GET /api/prometheus-targets  →  Prometheus file_sd 格式
-// cron 每分钟调用：
-//   curl -sf http://127.0.0.1:8080/api/prometheus-targets > /etc/prometheus/targets/nodes.json
+// GET /prometheus-targets  →  Prometheus file_sd 格式
+// cron 每分钟调用（直连 Go 服务，无需经过 nginx）：
+//   curl -sf http://127.0.0.1:8080/prometheus-targets > /etc/prometheus/targets/nodes.json
 func handlePrometheusTargets(w http.ResponseWriter, r *http.Request) {
 	if !requireAuth(w, r) {
 		return

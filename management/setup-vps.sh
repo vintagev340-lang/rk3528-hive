@@ -145,7 +145,8 @@ if [ -n "${REGISTRY_API_SECRET}" ]; then
     AUTH_HEADER="-H \"Authorization: Bearer ${REGISTRY_API_SECRET}\""
 fi
 
-CRON_LINE="* * * * * root curl -sf ${AUTH_HEADER} ${REGISTRY_LOCAL_URL}/api/prometheus-targets > ${TARGETS_FILE}"
+# cron 直连 Go 服务（不经 nginx），路径无 /api 前缀
+CRON_LINE="* * * * * root curl -sf ${AUTH_HEADER} ${REGISTRY_LOCAL_URL}/prometheus-targets > ${TARGETS_FILE}"
 # 替换同名 cron 行（grep 匹配 prometheus-targets，保证幂等）
 TMP=$(mktemp)
 (crontab -l 2>/dev/null | grep -v "prometheus-targets"; echo "$CRON_LINE") > "$TMP"
@@ -161,13 +162,13 @@ echo "  Prometheus     : ${PROMETHEUS_EXTERNAL_URL:-http://localhost:4230/promet
 echo "  Grafana        : ${GRAFANA_ROOT_URL:-http://localhost:4231/grafana}"
 echo "  Grafana PW     : ${GRAFANA_PASSWORD:-changeme}"
 echo ""
-echo "  Verify registry:"
+echo "  Verify registry (direct=无前缀 / nginx=有 /api 前缀):"
 if [ -n "${REGISTRY_API_SECRET}" ]; then
     echo "    curl -H 'Authorization: Bearer ${REGISTRY_API_SECRET}' ${REGISTRY_LOCAL_URL}/health"
-    echo "    curl -H 'Authorization: Bearer ${REGISTRY_API_SECRET}' ${REGISTRY_LOCAL_URL}/api/nodes"
+    echo "    curl -H 'Authorization: Bearer ${REGISTRY_API_SECRET}' http://localhost/api/health"
 else
     echo "    curl ${REGISTRY_LOCAL_URL}/health"
-    echo "    curl ${REGISTRY_LOCAL_URL}/api/nodes"
+    echo "    curl http://localhost/api/health"
 fi
 echo ""
 echo "  If no nginx reverse proxy, SSH tunnel to access locally:"
