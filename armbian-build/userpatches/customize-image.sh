@@ -53,7 +53,8 @@ apt-get install -y --no-install-recommends \
     ufw \
     fail2ban \
     zsh \
-    net-tools
+    net-tools \
+    vim
 
 # ─────────────────────────────────────────────
 # 3. 安装 Tailscale（官方 apt 源）
