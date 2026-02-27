@@ -169,7 +169,7 @@ chsh -s /bin/zsh root
 echo ">>> Hardening SSH configuration..."
 cat > /etc/ssh/sshd_config.d/99-hive-hardening.conf << 'EOF'
 PermitRootLogin yes
-PasswordAuthentication no
+PasswordAuthentication yes
 KbdInteractiveAuthentication no
 MaxAuthTries 3
 LoginGraceTime 30
